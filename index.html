@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aikya Guest Registration</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Tailwind Configuration with Custom Colors -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-dark': '#662222', // Deep Red/Brown - Used for background and dark base
+                        'secondary-accent': '#842A3B', // Mid Red/Brown - Used for buttons and key accents
+                        'tertiary-highlight': '#A3485A', // Lighter Red/Brown - Used for borders and section headers
+                        'text-light': '#F5DAA7', // Light Gold/Tan - Used for text and light backgrounds
+                    },
+                },
+            },
+        }
+    </script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            box-sizing: border-box;
+            /* Applying primary-dark to the body background */
+            background-color: #662222; 
+        }
+        
+        /* Custom Scrollbar for Admin Table */
+        .scrollable-table::-webkit-scrollbar { 
+            height: 8px; 
+            width: 8px;
+        }
+        .scrollable-table::-webkit-scrollbar-thumb { 
+            background: linear-gradient(90deg, #842A3B, #A3485A);
+            border-radius: 6px; 
+        }
+        .scrollable-table::-webkit-scrollbar-track { 
+            background: #441111; /* Dark track for contrast */
+            border-radius: 6px;
+        }
+        
+        /* Glassmorphism Effect for Admin Sidebar (FIXED READABILITY) */
+        .glass-effect {
+            backdrop-filter: blur(20px);
+            /* Darker, more opaque background based on primary-dark for readability */
+            background: rgba(102, 34, 34, 0.9); /* #662222 with 90% opacity */
+            border: 1px solid rgba(245, 218, 167, 0.5); /* Border uses text-light with transparency */
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+            color: #F5DAA7; /* Ensure all text inside is the light color */
+        }
+
+        .admin-sidebar {
+            transition: transform 0.3s ease-in-out;
+            transform: translateX(100%);
+        }
+        .admin-sidebar.open {
+            transform: translateX(0);
+        }
+        
+        /* Hides the default calendar icon provided by the browser, */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: pointer;
+        }
+
+        /* Loading Spinner Color */
+        .spinner {
+            border-top-color: #F5DAA7; /* Use light text color for visibility */
+            -webkit-animation: spin 1s infinite linear;
+            animation: spin 1s infinite linear;
+        }
+
+        @-webkit-keyframes spin {
+            0% { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Co-guest form styling */
+        .co-guest-form {
+            border-left: 4px solid #A3485A;
+            transition: all 0.3s ease;
+        }
+        
+        .co-guest-form:hover {
+            border-left-color: #F5DAA7;
+            background-color: rgba(245, 218, 167, 0.1);
+        }
+        
+        /* Enhanced Admin Button Styles */
+        .admin-portal-btn {
+            background: linear-gradient(135deg, #842A3B 0%, #A3485A 100%);
+            box-shadow: 0 4px 15px rgba(132, 42, 59, 0.4);
+            transition: all 0.3s ease;
+            border: 2px solid rgba(245, 218, 167, 0.3);
+        }
+        
+        .admin-portal-btn:hover {
+            background: linear-gradient(135deg, #A3485A 0%, #842A3B 100%);
+            box-shadow: 0 6px 20px rgba(132, 42, 59, 0.6);
+            transform: translateY(-2px);
+        }
+        
+        .admin-portal-btn:active {
+            transform: translateY(0);
+        }
+        
+        .pulse-ring {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(132, 42, 59, 0.7);
+            }
+            
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 10px rgba(132, 42, 59, 0);
+            }
+            
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(132, 42, 59, 0);
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4 relative">
+
+    <!-- Success/Error Message Box -->
+    <div id="message-box" class="fixed top-4 right-4 z-50 transition-all duration-300 opacity-0 transform translate-y-[-20px] pointer-events-none">
+        <!-- Content will be inserted here -->
+    </div>
+
+    <!-- Main Content Card (Standard White/Shadow - Using Text-Light as background) -->
+    <div id="main-card" class="w-full max-w-4xl p-8 bg-text-light rounded-xl shadow-2xl relative">
+        <!-- Header with Logo -->
+        <div class="flex flex-col items-center mb-8">
+            <div class="flex items-center justify-center space-x-4 mb-4">
+                <div class="w-16 h-16 bg-gradient-to-br from-secondary-accent to-tertiary-highlight rounded-lg flex items-center justify-center shadow">
+                    <img src="logo.png" alt="Aikya Logo" class="w-12 h-12 object-contain">
+                </div>
+                <div class="text-center">
+                    <h1 class="text-3xl font-bold text-secondary-accent">AIKYA</h1>
+                    <p class="text-sm text-secondary-accent font-medium">Guest Registration</p>
+                </div>
+            </div>
+        </div>
+        
+        <form id="registration-form" class="space-y-6">
+            
+            <!-- Guest Details Section -->
+            <div class="p-6 rounded-lg bg-text-light/50 border border-tertiary-highlight/50 shadow-md">
+                <h2 class="text-xl font-semibold text-tertiary-highlight mb-4">Your Details</h2>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="guest-name" class="block text-sm font-medium text-gray-700 mb-1">Guest Name</label>
+                        <input type="text" id="guest-name" name="guest_name" required 
+                               class="w-full px-4 py-2 border border-tertiary-highlight/40 rounded-lg focus:ring-tertiary-highlight focus:border-tertiary-highlight transition duration-150">
+                    </div>
+                    <div>
+                        <label for="phone-number" class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                        <input type="tel" id="phone-number" name="phone_number" required 
+                               pattern="[0-9]{10}" title="Ten digits phone number"
+                               class="w-full px-4 py-2 border border-tertiary-highlight/40 rounded-lg focus:ring-tertiary-highlight focus:border-tertiary-highlight transition duration-150">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stay Details Section -->
+            <div class="p-6 rounded-lg bg-text-light/50 border border-tertiary-highlight/50 shadow-md">
+                <h2 class="text-xl font-semibold text-tertiary-highlight mb-4">Stay & Purpose</h2>
+                <div class="grid md:grid-cols-3 gap-6">
+                    <!-- Check-in Date with Icon -->
+                    <div>
+                        <label for="check-in-date" class="block text-sm font-medium text-gray-700 mb-1">Check-in Date</label>
+                        <div class="relative flex items-center">
+                            <input type="date" id="check-in-date" name="check_in_date" required 
+                                   class="w-full pr-10 pl-4 py-2 border border-tertiary-highlight/40 rounded-lg focus:ring-tertiary-highlight focus:border-tertiary-highlight transition duration-150">
+                            <svg class="w-5 h-5 absolute right-3 text-tertiary-highlight pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h.01M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        </div>
+                    </div>
+                    
+                    <!-- Check-out Date with Icon -->
+                    <div>
+                        <label for="check-out-date" class="block text-sm font-medium text-gray-700 mb-1">Check-out Date</label>
+                        <div class="relative flex items-center">
+                            <input type="date" id="check-out-date" name="check_out_date" required 
+                                   class="w-full pr-10 pl-4 py-2 border border-tertiary-highlight/40 rounded-lg focus:ring-tertiary-highlight focus:border-tertiary-highlight transition duration-150">
+                            <svg class="w-5 h-5 absolute right-3 text-tertiary-highlight pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h.01M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="purpose-of-visit" class="block text-sm font-medium text-gray-700 mb-1">Purpose of Visit</label>
+                        <select id="purpose-of-visit" name="purpose_of_visit" required 
+                                class="w-full px-4 py-2 border border-tertiary-highlight/40 rounded-lg focus:ring-tertiary-highlight focus:border-tertiary-highlight transition duration-150 appearance-none bg-white">
+                            <option value="">Select Purpose</option>
+                            <option value="Business">Business</option>
+                            <option value="Personal">Personal/Leisure</option>
+                            <option value="Family Event">Family Event</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ID Proof Section -->
+            <div class="p-6 rounded-lg bg-text-light/50 border border-tertiary-highlight/50 shadow-md">
+                <h2 class="text-xl font-semibold text-tertiary-highlight mb-4">Main Guest ID Proof</h2>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="id-proof-type" class="block text-sm font-medium text-gray-700 mb-1">ID Proof Type</label>
+                        <select id="id-proof-type" name="id_proof_type" required 
+                                class="w-full px-4 py-2 border border-tertiary-highlight/40 rounded-lg focus:ring-tertiary-highlight focus:border-tertiary-highlight transition duration-150 appearance-none bg-white">
+                            <option value="">Select ID Type</option>
+                            <option value="Aadhar">Aadhar Card</option>
+                            <option value="Driving License">Driving License</option>
+                            <option value="PAN">PAN Card</option>
+                            <option value="Voters ID">Voter's ID</option>
+                            <option value="Passport">Passport</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="id-proof-file" class="block text-sm font-medium text-gray-700 mb-1">Upload ID Proof Document</label>
+                        <input type="file" id="id-proof-file" name="id_proof_file" required 
+                               accept=".jpg,.jpeg,.png,.pdf"
+                               class="w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-tertiary-highlight/20 file:text-tertiary-highlight hover:file:bg-tertiary-highlight/30 transition duration-150">
+                        <p class="text-xs text-gray-500 mt-1">JPG, PNG or PDF (max 2MB)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Co-Guests Section -->
+            <div class="p-6 rounded-lg bg-text-light/50 border border-tertiary-highlight/50 shadow-md space-y-4">
+                <h2 class="text-xl font-semibold text-tertiary-highlight">Co-Guests</h2>
+                <div id="co-guest-container" class="space-y-4">
+                    <!-- Co-guest forms will be inserted here by JavaScript -->
+                </div>
+                <button type="button" id="add-guest-btn" class="flex items-center justify-center px-4 py-2 text-sm font-medium rounded-full border border-secondary-accent text-secondary-accent hover:bg-secondary-accent/10 transition duration-150">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                    Add Co-Guest
+                </button>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="flex justify-center pt-4">
+                <button type="submit" id="submit-btn" 
+                        class="w-full md:w-auto px-10 py-3 text-lg font-semibold bg-secondary-accent text-text-light rounded-xl shadow-lg hover:bg-tertiary-highlight focus:outline-none focus:ring-4 focus:ring-secondary-accent/50 transition duration-300 transform hover:scale-105 flex items-center justify-center">
+                    <span id="submit-text">Complete Registration</span>
+                    <div id="loading-spinner" class="spinner h-5 w-5 border-2 rounded-full hidden ml-3"></div>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Enhanced Admin Menu Toggle Button -->
+    <button id="admin-menu-toggle" class="fixed bottom-6 right-6 z-40 admin-portal-btn pulse-ring text-text-light font-bold rounded-2xl shadow-2xl transition duration-300 flex items-center space-x-3 p-4" onclick="toggleAdminMenu()">
+        <!-- Shield Icon with Badge -->
+        <div class="relative">
+            <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,7C13.4,7 14.8,8.6 14.8,10V10.7C15.4,10.9 16,11.3 16.4,11.9C17.2,13.1 16.9,14.7 15.6,15.5C14.3,16.3 12.7,16 11.9,14.8C11.6,14.2 11.7,13.6 12,13V10C12,9.4 12.4,9 13,9C13.6,9 14,9.4 14,10V10.7C14.6,10.4 15.3,10.2 16,10.3C16.7,10.4 17.3,10.8 17.7,11.4C18,12 18.1,12.7 17.9,13.4C17.3,15 15.7,15.9 14.1,15.6C12.9,15.3 12,14.3 12,13V10C12,8.9 12.9,8 14,8C15.1,8 16,8.9 16,10V11H18V10C18,7.8 16.2,6 14,6C11.8,6 10,7.8 10,10V13C10,15.2 11.8,17 14,17C15.1,17 16.1,16.6 16.8,15.9C17.6,15.2 18,14.1 18,13V11C18,8.8 16.2,7 14,7H12Z" />
+            </svg>
+            <div class="absolute -top-1 -right-1 w-3 h-3 bg-text-light rounded-full border-2 border-secondary-accent"></div>
+        </div>
+        <div class="text-left">
+            <div class="font-semibold text-sm leading-tight">Admin</div>
+            <div class="text-xs opacity-90 leading-tight">Portal</div>
+        </div>
+    </button>
+
+    <!-- Alternative Floating Admin Button (Compact) -->
+    <button id="admin-menu-toggle-compact" class="fixed bottom-6 right-6 z-40 admin-portal-btn text-text-light font-bold rounded-full shadow-2xl transition duration-300 flex items-center justify-center p-4 md:hidden" onclick="toggleAdminMenu()">
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,7C13.4,7 14.8,8.6 14.8,10V10.7C15.4,10.9 16,11.3 16.4,11.9C17.2,13.1 16.9,14.7 15.6,15.5C14.3,16.3 12.7,16 11.9,14.8C11.6,14.2 11.7,13.6 12,13V10C12,9.4 12.4,9 13,9C13.6,9 14,9.4 14,10V10.7C14.6,10.4 15.3,10.2 16,10.3C16.7,10.4 17.3,10.8 17.7,11.4C18,12 18.1,12.7 17.9,13.4C17.3,15 15.7,15.9 14.1,15.6C12.9,15.3 12,14.3 12,13V10C12,8.9 12.9,8 14,8C15.1,8 16,8.9 16,10V11H18V10C18,7.8 16.2,6 14,6C11.8,6 10,7.8 10,10V13C10,15.2 11.8,17 14,17C15.1,17 16.1,16.6 16.8,15.9C17.6,15.2 18,14.1 18,13V11C18,8.8 16.2,7 14,7H12Z" />
+        </svg>
+    </button>
+
+    <!-- Admin Menu Sidebar (With Fixed Glass Effect for Readability) -->
+    <div id="admin-sidebar" class="admin-sidebar fixed top-0 right-0 w-full md:w-3/4 lg:w-1/2 xl:w-1/3 h-full glass-effect shadow-2xl p-6 overflow-y-auto z-50">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold">Admin Portal</h2>
+            <button onclick="toggleAdminMenu(false)" class="hover:text-tertiary-highlight transition duration-150">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+
+        <!-- Auth Section -->
+        <div id="admin-auth-section">
+            <h3 class="text-xl font-semibold mb-4">Admin Login</h3>
+            <form id="admin-login-form" class="space-y-4">
+                <input type="email" id="admin-email" placeholder="Email" required class="w-full px-4 py-2 rounded-lg bg-primary-dark/50 border border-text-light/50 text-text-light placeholder-text-light/80 focus:ring-tertiary-highlight focus:border-tertiary-highlight">
+                <input type="password" id="admin-password" placeholder="Password" required class="w-full px-4 py-2 rounded-lg bg-primary-dark/50 border border-text-light/50 text-text-light placeholder-text-light/80 focus:ring-tertiary-highlight focus:border-tertiary-highlight">
+                <button type="submit" class="w-full py-2 bg-secondary-accent text-text-light font-semibold rounded-lg hover:bg-tertiary-highlight transition duration-150">Login</button>
+                <p id="auth-message" class="text-text-light text-center"></p>
+            </form>
+        </div>
+
+        <!-- Data Section (Visible after login) -->
+        <div id="admin-data-section" class="hidden space-y-6">
+            <div class="flex justify-between items-center">
+                <p class="text-sm">Logged in as Admin. User ID: <span id="admin-user-id" class="font-mono text-tertiary-highlight"></span></p>
+                <button id="logout-btn" class="px-3 py-1 bg-tertiary-highlight text-text-light text-sm font-medium rounded-lg hover:bg-secondary-accent transition duration-150">Logout</button>
+            </div>
+            
+            <!-- Date Filter -->
+            <div class="p-4 rounded-lg bg-primary-dark/50 space-y-3 border border-text-light/50">
+                <h3 class="font-medium">Filter Registrations by Date</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <!-- Start Date Filter with Icon -->
+                    <div class="relative flex items-center">
+                        <input type="date" id="filter-start-date" class="pr-10 pl-3 py-2 rounded-lg bg-primary-dark text-text-light border border-tertiary-highlight w-full">
+                        <svg class="w-5 h-5 absolute right-3 text-tertiary-highlight pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h.01M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    </div>
+                    <!-- End Date Filter with Icon -->
+                    <div class="relative flex items-center">
+                        <input type="date" id="filter-end-date" class="pr-10 pl-3 py-2 rounded-lg bg-primary-dark text-text-light border border-tertiary-highlight w-full">
+                        <svg class="w-5 h-5 absolute right-3 text-tertiary-highlight pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h.01M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    </div>
+                </div>
+                <button onclick="fetchGuests()" class="w-full py-2 bg-secondary-accent text-text-light font-semibold rounded-lg hover:bg-tertiary-highlight transition duration-150">Filter Guests</button>
+            </div>
+
+            <h3 class="text-xl font-semibold">Guest Registrations (<span id="guest-count">0</span>)</h3>
+            
+            <!-- Guest Table -->
+            <div class="scrollable-table overflow-x-auto rounded-lg shadow-lg">
+                <table class="min-w-full divide-y divide-primary-dark">
+                    <thead class="bg-primary-dark">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-text-light uppercase tracking-wider">Reg ID</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-text-light uppercase tracking-wider">Name & Phone</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-text-light uppercase tracking-wider">Dates & Purpose</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-text-light uppercase tracking-wider">ID Type (Co-Guests)</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-text-light uppercase tracking-wider">Registered At</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-text-light uppercase tracking-wider">ID Proof</th>
+                        </tr>
+                    </thead>
+                    <tbody id="guest-list-body" class="bg-tertiary-highlight/10 divide-y divide-tertiary-highlight/30">
+                        <!-- Guest rows will be inserted here -->
+                        <tr id="loading-row" class="text-text-light text-center"><td colspan="6" class="p-4">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // =================================================================
+        // GLOBAL VARIABLES & SUPABASE CONFIGURATION
+        // =================================================================
+        // NOTE: Replace with your actual Supabase credentials for production use
+        const SUPABASE_URL = 'https://jfloqndznzwdzfnuinan.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_KSCjYZlUC_0ceGiyqA2g0A_-5QC1rZN';
+
+        // Initialize Supabase Client (Renamed to avoid hoisting issues)
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const auth = supabaseClient.auth;
+        const storage = supabaseClient.storage;
+
+        // DOM Elements
+        const registrationForm = document.getElementById('registration-form');
+        const submitBtn = document.getElementById('submit-btn');
+        const submitText = document.getElementById('submit-text');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const messageBox = document.getElementById('message-box');
+        const adminLoginForm = document.getElementById('admin-login-form');
+        const adminAuthSection = document.getElementById('admin-auth-section');
+        const adminDataSection = document.getElementById('admin-data-section');
+        const guestListBody = document.getElementById('guest-list-body');
+        const adminUserIdSpan = document.getElementById('admin-user-id');
+        const coGuestContainer = document.getElementById('co-guest-container');
+        const addGuestBtn = document.getElementById('add-guest-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        
+        let coGuestCounter = 0;
+
+        // =================================================================
+        // UTILITY FUNCTIONS
+        // =================================================================
+
+        /**
+         * Shows a message box for success or error.
+         * @param {string} message The message to display.
+         * @param {string} type 'success' or 'error'.
+         */
+        function showMessage(message, type) {
+            const isSuccess = type === 'success';
+            // Use custom colors for messages
+            const bgColor = isSuccess ? 'bg-tertiary-highlight' : 'bg-primary-dark'; 
+            const textColor = isSuccess ? 'text-text-light' : 'text-text-light'; 
+            
+            const icon = isSuccess ? 
+                '<svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>' :
+                '<svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>';
+
+            messageBox.innerHTML = `
+                <div class="${bgColor} ${textColor} px-6 py-3 rounded-xl shadow-2xl flex items-center">
+                    ${icon}
+                    <p class="font-medium">${message}</p>
+                </div>
+            `;
+            messageBox.classList.remove('opacity-0', 'translate-y-[-20px]');
+            messageBox.classList.add('opacity-100', 'translate-y-0');
+
+            setTimeout(() => {
+                messageBox.classList.remove('opacity-100', 'translate-y-0');
+                messageBox.classList.add('opacity-0', 'translate-y-[-20px]');
+            }, 5000);
+        }
+
+        /**
+         * Toggles loading state on the submit button.
+         * @param {boolean} isLoading 
+         */
+        function toggleLoading(isLoading) {
+            submitBtn.disabled = isLoading;
+            if (isLoading) {
+                submitText.textContent = 'Processing...';
+                loadingSpinner.classList.remove('hidden');
+                submitBtn.classList.add('cursor-not-allowed');
+            } else {
+                submitText.textContent = 'Complete Registration';
+                loadingSpinner.classList.add('hidden');
+                submitBtn.classList.remove('cursor-not-allowed');
+            }
+        }
+
+        /**
+         * Generates a unique Registration ID (REG-YYYY-XXXXX)
+         * @returns {string} Unique registration ID.
+         */
+        function generateRegId() {
+            const year = new Date().getFullYear();
+            const suffix = Math.random().toString(36).substring(2, 7).toUpperCase();
+            return `REG-${year}-${suffix}`;
+        }
+
+        /**
+         * Gets the current IST time string.
+         * @returns {string} IST time string.
+         */
+        function getISTTimeString() {
+            return new Date().toLocaleString('en-IN', {
+                timeZone: 'Asia/Kolkata',
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: true
+            });
+        }
+
+        /**
+         * Validates file size (max 2MB)
+         * @param {File} file The file to validate
+         * @returns {boolean} True if file size is valid
+         */
+        function validateFileSize(file) {
+            const maxSize = 2 * 1024 * 1024; // 2MB in bytes
+            if (file.size > maxSize) {
+                showMessage('File size must be less than 2MB', 'error');
+                return false;
+            }
+            return true;
+        }
+
+        /**
+         * Creates UTC date strings for Supabase filtering, accounting for IST+5:30.
+         * @param {string} dateString 'YYYY-MM-DD' date selected by the user.
+         * @returns {string} UTC timestamp string (e.g., '2025-01-01T00:00:00.000Z').
+         */
+        function getAdjustedUTCFilterString(dateString, isEnd = false) {
+            const date = new Date(dateString);
+            
+            // IST is UTC + 5:30. To correctly filter an IST date, we must adjust the UTC time.
+            let offsetMinutes = 330; 
+            
+            if (isEnd) {
+                 // For the end date, we want to include registrations up to 23:59:59 IST.
+                 // This means we need to advance the date by one day (24 hours) and THEN subtract the offset.
+                 date.setDate(date.getDate() + 1); 
+            }
+            
+            // Adjust the date by the IST offset
+            date.setMinutes(date.getMinutes() - offsetMinutes);
+            
+            return date.toISOString();
+        }
+
+        // =================================================================
+        // CO-GUEST MANAGEMENT
+        // =================================================================
+
+        /**
+         * Creates and appends a new co-guest form element.
+         * @param {number} id Counter for unique ID generation.
+         */
+        function createCoGuestForm(id) {
+            const guestDiv = document.createElement('div');
+            guestDiv.id = `co-guest-${id}`;
+            guestDiv.classList.add('co-guest-form', 'p-4', 'rounded-lg', 'bg-text-light/80', 'space-y-4');
+            
+            const content = `
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-semibold text-tertiary-highlight">Co-Guest ${id}</h3>
+                    <button type="button" onclick="removeCoGuest(${id})" class="text-primary-dark hover:text-secondary-accent transition duration-150">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="co-guest-name-${id}" class="block text-sm font-medium text-gray-700 mb-1">Co-Guest Name</label>
+                        <input type="text" id="co-guest-name-${id}" name="co_guest_name_${id}" required 
+                               class="w-full px-4 py-2 border border-tertiary-highlight/40 rounded-lg focus:ring-secondary-accent focus:border-secondary-accent transition duration-150">
+                    </div>
+                    <div>
+                        <label for="co-guest-phone-${id}" class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                        <input type="tel" id="co-guest-phone-${id}" name="co_guest_phone_${id}" required 
+                               pattern="[0-9]{10}" title="Ten digits phone number"
+                               class="w-full px-4 py-2 border border-tertiary-highlight/40 rounded-lg focus:ring-secondary-accent focus:border-secondary-accent transition duration-150">
+                    </div>
+                </div>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="co-guest-id-type-${id}" class="block text-sm font-medium text-gray-700 mb-1">ID Proof Type</label>
+                        <select id="co-guest-id-type-${id}" name="co_guest_id_type_${id}" required 
+                                class="w-full px-4 py-2 border border-tertiary-highlight/40 rounded-lg focus:ring-secondary-accent focus:border-secondary-accent transition duration-150 appearance-none bg-white">
+                            <option value="">Select ID Type</option>
+                            <option value="Aadhar">Aadhar Card</option>
+                            <option value="Driving License">Driving License</option>
+                            <option value="PAN">PAN Card</option>
+                            <option value="Voters ID">Voter's ID</option>
+                            <option value="Passport">Passport</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="co-guest-id-file-${id}" class="block text-sm font-medium text-gray-700 mb-1">Upload ID Proof Document</label>
+                        <input type="file" id="co-guest-id-file-${id}" name="co_guest_id_file_${id}" required 
+                               accept=".jpg,.jpeg,.png,.pdf"
+                               class="w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-tertiary-highlight/20 file:text-tertiary-highlight hover:file:bg-tertiary-highlight/30 transition duration-150">
+                        <p class="text-xs text-gray-500 mt-1">JPG, PNG or PDF (max 2MB)</p>
+                    </div>
+                </div>
+            `;
+
+            guestDiv.innerHTML = content;
+            coGuestContainer.appendChild(guestDiv);
+        }
+
+        /**
+         * Adds a co-guest form.
+         */
+        function addCoGuest() {
+            coGuestCounter++;
+            createCoGuestForm(coGuestCounter);
+        }
+
+        /**
+         * Removes a co-guest form by ID.
+         * @param {number} id 
+         */
+        function removeCoGuest(id) {
+            const element = document.getElementById(`co-guest-${id}`);
+            if (element) {
+                element.remove();
+            }
+        }
+
+        // =================================================================
+        // REGISTRATION HANDLER
+        // =================================================================
+
+        /**
+         * Handles form submission: uploads file and inserts record into Supabase.
+         */
+        async function handleRegistration(event) {
+            event.preventDefault();
+            toggleLoading(true);
+
+            const form = event.target;
+            const fileInput = document.getElementById('id-proof-file');
+            const file = fileInput.files[0];
+            const regId = generateRegId();
+            const istTime = getISTTimeString();
+
+            if (!file) {
+                showMessage('Please upload an ID Proof document for the main guest.', 'error');
+                toggleLoading(false);
+                return;
+            }
+
+            // Validate main guest ID file size
+            if (!validateFileSize(file)) {
+                toggleLoading(false);
+                return;
+            }
+
+            try {
+                // 1. Upload Main Guest File to Supabase Storage
+                const fileExtension = file.name.split('.').pop();
+                const storagePath = `guest_reg_uploads/${regId}.${fileExtension}`;
+
+                const { data: uploadData, error: uploadError } = await storage
+                    .from('id-proofs')
+                    .upload(storagePath, file, {
+                        cacheControl: '3600',
+                        upsert: false
+                    });
+
+                if (uploadError) {
+                    console.error('Storage Upload Error:', uploadError);
+                    showMessage(`File upload failed: ${uploadError.message}`, 'error');
+                    toggleLoading(false);
+                    return;
+                }
+
+                // 2. Get Public URL for the uploaded file
+                const { data: publicUrlData } = storage.from('id-proofs').getPublicUrl(storagePath);
+                const idProofUrl = publicUrlData.publicUrl;
+
+                // 3. Collect and Upload Co-Guest Data
+                const coGuests = [];
+                for (let i = 1; i <= coGuestCounter; i++) {
+                    const nameInput = document.getElementById(`co-guest-name-${i}`);
+                    const phoneInput = document.getElementById(`co-guest-phone-${i}`);
+                    const typeSelect = document.getElementById(`co-guest-id-type-${i}`);
+                    const fileInput = document.getElementById(`co-guest-id-file-${i}`);
+                    
+                    if (nameInput && phoneInput && typeSelect && fileInput && fileInput.files[0]) {
+                        const coGuestFile = fileInput.files[0];
+                        
+                        // Validate co-guest ID file size
+                        if (!validateFileSize(coGuestFile)) {
+                            toggleLoading(false);
+                            return;
+                        }
+                        
+                        const coGuestFileExtension = coGuestFile.name.split('.').pop();
+                        const coGuestStoragePath = `guest_reg_uploads/${regId}_co${i}.${coGuestFileExtension}`;
+
+                        // Upload co-guest ID file
+                        const { error: coGuestUploadError } = await storage
+                            .from('id-proofs')
+                            .upload(coGuestStoragePath, coGuestFile, {
+                                cacheControl: '3600',
+                                upsert: false
+                            });
+
+                        if (coGuestUploadError) {
+                            console.error('Co-Guest Storage Upload Error:', coGuestUploadError);
+                            showMessage(`Co-guest file upload failed: ${coGuestUploadError.message}`, 'error');
+                            toggleLoading(false);
+                            return;
+                        }
+
+                        // Get public URL for co-guest ID file
+                        const { data: coGuestPublicUrlData } = storage.from('id-proofs').getPublicUrl(coGuestStoragePath);
+                        const coGuestIdProofUrl = coGuestPublicUrlData.publicUrl;
+
+                        coGuests.push({
+                            name: nameInput.value,
+                            phone_number: phoneInput.value,
+                            id_proof_type: typeSelect.value,
+                            id_proof_url: coGuestIdProofUrl
+                        });
+                    }
+                }
+                
+                // 4. Insert Record into Supabase Database
+                const { error: insertError } = await supabaseClient
+                    .from('guests')
+                    .insert({
+                        reg_id: regId,
+                        guest_name: form['guest_name'].value,
+                        phone_number: form['phone_number'].value,
+                        check_in_date: form['check_in_date'].value,
+                        check_out_date: form['check_out_date'].value,
+                        purpose_of_visit: form['purpose_of_visit'].value,
+                        id_proof_type: form['id_proof_type'].value,
+                        id_proof_url: idProofUrl,
+                        created_at_ist: istTime,
+                        co_guests: JSON.stringify(coGuests) // Store co-guests as a JSON string
+                    });
+
+                if (insertError) {
+                    console.error('Database Insert Error:', insertError);
+                    showMessage(`Registration failed: ${insertError.message}`, 'error');
+                    // OPTIONAL: Delete the uploaded file if database insert fails
+                } else {
+                    showMessage(`Registration Complete! Your ID is ${regId}.`, 'success');
+                    form.reset();
+                    // Clear co-guests after successful submission
+                    coGuestContainer.innerHTML = '';
+                    coGuestCounter = 0;
+                    addCoGuest(); // Add the first empty co-guest form back
+                }
+
+            } catch (error) {
+                console.error('An unexpected error occurred:', error);
+                showMessage('An unexpected error occurred during registration.', 'error');
+            } finally {
+                toggleLoading(false);
+            }
+        }
+
+        // =================================================================
+        // ADMIN PORTAL - AUTH
+        // =================================================================
+
+        /**
+         * Toggles the visibility of the admin sidebar.
+         * @param {boolean} [open=null] Explicitly set state (true/false).
+         */
+        function toggleAdminMenu(open = null) {
+            const sidebar = document.getElementById('admin-sidebar');
+            const isOpen = sidebar.classList.contains('open');
+
+            if (open === true && !isOpen) {
+                sidebar.classList.add('open');
+            } else if (open === false && isOpen) {
+                sidebar.classList.remove('open');
+            } else if (open === null) {
+                // Toggle state
+                sidebar.classList.toggle('open');
+            }
+        }
+
+        /**
+         * Handles admin login via email/password.
+         */
+        async function handleAdminLogin(event) {
+            event.preventDefault();
+            const email = document.getElementById('admin-email').value;
+            const password = document.getElementById('admin-password').value;
+            const authMessage = document.getElementById('auth-message');
+            authMessage.textContent = 'Logging in...';
+
+            const { error } = await auth.signInWithPassword({ email, password });
+
+            if (error) {
+                authMessage.textContent = `Login failed: ${error.message}`;
+            } else {
+                authMessage.textContent = 'Success!';
+                // onAuthStateChanged will handle UI update
+            }
+        }
+        
+        /**
+         * Handles admin logout.
+         */
+        async function handleAdminLogout() {
+            const { error } = await auth.signOut();
+            if (error) {
+                console.error('Logout error:', error);
+                showMessage(`Logout failed: ${error.message}`, 'error');
+            } else {
+                showMessage('Successfully logged out', 'success');
+                // The auth state change listener will handle UI update
+            }
+        }
+
+        /**
+         * Updates the UI based on the current authentication status.
+         * @param {object | null} user Supabase user object or null.
+         */
+        function updateAdminUI(user) {
+            if (user) {
+                adminUserIdSpan.textContent = user.id.substring(0, 8);
+                adminAuthSection.classList.add('hidden');
+                adminDataSection.classList.remove('hidden');
+                fetchGuests(); // Load data immediately upon login
+            } else {
+                adminAuthSection.classList.remove('hidden');
+                adminDataSection.classList.add('hidden');
+                document.getElementById('auth-message').textContent = '';
+                adminUserIdSpan.textContent = 'N/A';
+                guestListBody.innerHTML = '<tr id="loading-row" class="text-text-light text-center"><td colspan="6" class="p-4">Please log in.</td></tr>';
+            }
+        }
+
+        /**
+         * Generates a signed URL for secure file download.
+         * @param {string} storagePath The path to the file in the bucket.
+         * @returns {string} Signed URL or empty string on error.
+         */
+        async function generateSignedUrl(storagePath) {
+            // storagePath comes back from the DB as a full public URL, e.g.,
+            // https://[ref].supabase.co/storage/v1/object/public/id-proofs/guest_reg_uploads/REG-2025-XXXXX.pdf
+            
+            // Extract the internal path: "guest_reg_uploads/REG-2025-XXXXX.pdf"
+            const urlParts = storagePath.split('id-proofs/');
+            if (urlParts.length < 2) return ''; 
+            const internalPath = urlParts[1];
+
+            const { data, error } = await storage.from('id-proofs').createSignedUrl(internalPath, 60); // 60 seconds validity
+
+            if (error) {
+                console.error('Error generating signed URL:', error);
+                return '';
+            }
+            return data.signedUrl;
+        }
+
+        /**
+         * Initiates the file download process using a signed URL.
+         * @param {string} idProofUrl The public URL of the file.
+         */
+        async function handleDownload(idProofUrl) {
+            const downloadUrl = await generateSignedUrl(idProofUrl);
+            if (downloadUrl) {
+                // Open the signed URL in a new tab to initiate download
+                window.open(downloadUrl, '_blank');
+            } else {
+                showMessage('Could not secure file access. Check RLS policies.', 'error');
+            }
+        }
+
+        // =================================================================
+        // ADMIN PORTAL - DATA FETCHING
+        // =================================================================
+
+        /**
+         * Fetches and renders the list of registered guests.
+         */
+        async function fetchGuests() {
+            guestListBody.innerHTML = '<tr id="loading-row" class="text-text-light text-center"><td colspan="6" class="p-4"><div class="spinner h-6 w-6 border-4 rounded-full mx-auto"></div></td></tr>';
+            
+            let query = supabaseClient.from('guests').select('*');
+            
+            const startDate = document.getElementById('filter-start-date').value;
+            const endDate = document.getElementById('filter-end-date').value;
+            
+            if (startDate) {
+                const utcStart = getAdjustedUTCFilterString(startDate, false);
+                query = query.gte('created_at', utcStart);
+            }
+            
+            if (endDate) {
+                const utcEnd = getAdjustedUTCFilterString(endDate, true);
+                query = query.lt('created_at', utcEnd);
+            }
+
+            // Always order by the original creation timestamp descending
+            query = query.order('created_at', { ascending: false });
+
+            const { data: guests, error } = await query;
+
+            if (error) {
+                guestListBody.innerHTML = `<tr class="text-tertiary-highlight"><td colspan="6" class="p-4 text-center">Error fetching data: ${error.message}</td></tr>`;
+                document.getElementById('guest-count').textContent = 'Error';
+                return;
+            }
+
+            document.getElementById('guest-count').textContent = guests.length;
+            guestListBody.innerHTML = ''; // Clear loading row
+
+            if (guests.length === 0) {
+                guestListBody.innerHTML = '<tr class="text-text-light/80"><td colspan="6" class="p-4 text-center">No registrations found.</td></tr>';
+                return;
+            }
+
+            guests.forEach(guest => {
+                const tr = document.createElement('tr');
+                tr.classList.add('hover:bg-primary-dark/50', 'transition', 'duration-150');
+
+                // Safely parse co-guests
+                let coGuestData = [];
+                let coGuestCount = 0;
+                try {
+                    coGuestData = JSON.parse(guest.co_guests || '[]');
+                    coGuestCount = coGuestData.length;
+                } catch (e) {
+                    console.error("Failed to parse co_guests JSON:", e);
+                }
+
+                const coGuestListHTML = coGuestCount > 0 
+                    ? `<ul class="list-disc pl-5 text-xs mt-1 text-text-light/80">
+                        ${coGuestData.map(cg => `<li>${cg.name} (${cg.phone_number}) - ${cg.id_proof_type}</li>`).join('')}
+                       </ul>`
+                    : '<span class="text-xs text-text-light/60">None</span>';
+
+                const coGuestIdProofs = coGuestCount > 0 
+                    ? coGuestData.map((cg, index) => 
+                        `<button onclick="handleDownload('${cg.id_proof_url}')" class="px-2 py-1 bg-tertiary-highlight text-text-light text-xs rounded-full hover:bg-secondary-accent transition duration-150 transform hover:scale-105 mt-1">
+                            Co-Guest ${index + 1} ID
+                        </button>`
+                      ).join('<br>')
+                    : '';
+
+                tr.innerHTML = `
+                    <td class="px-4 py-3 text-sm font-medium text-text-light whitespace-nowrap">${guest.reg_id}</td>
+                    <td class="px-4 py-3 text-sm text-text-light">
+                        <span class="font-semibold">${guest.guest_name}</span><br>
+                        <span class="text-xs text-text-light/80">${guest.phone_number}</span>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-text-light">
+                        Check-in: <span class="text-tertiary-highlight">${guest.check_in_date || 'N/A'}</span><br>
+                        Check-out: <span class="text-tertiary-highlight">${guest.check_out_date || 'N/A'}</span><br>
+                        <span class="text-xs text-text-light/80">Purpose: ${guest.purpose_of_visit || 'N/A'}</span>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-text-light">
+                        Main ID: <span class="font-semibold">${guest.id_proof_type || 'N/A'}</span><br>
+                        <span class="text-xs text-text-light/80">Co-Guests (${coGuestCount}):</span>
+                        ${coGuestListHTML}
+                    </td>
+                    <td class="px-4 py-3 text-xs text-text-light/80 whitespace-nowrap">${guest.created_at_ist || guest.created_at}</td>
+                    <td class="px-4 py-3 text-sm whitespace-nowrap">
+                        <button onclick="handleDownload('${guest.id_proof_url}')" class="px-3 py-1 bg-secondary-accent text-text-light text-xs rounded-full hover:bg-tertiary-highlight transition duration-150 transform hover:scale-105">
+                            Main Guest ID
+                        </button>
+                        ${coGuestIdProofs ? `<div class="mt-2">${coGuestIdProofs}</div>` : ''}
+                    </td>
+                `;
+                guestListBody.appendChild(tr);
+            });
+        }
+
+        // =================================================================
+        // EVENT LISTENERS & INITIALIZATION
+        // =================================================================
+
+        window.onload = function() {
+            // 1. Setup Form Listener
+            registrationForm.addEventListener('submit', handleRegistration);
+            
+            // 2. Setup Co-Guest Listener
+            addGuestBtn.addEventListener('click', addCoGuest);
+            
+            // 3. Setup Admin Login Listener
+            adminLoginForm.addEventListener('submit', handleAdminLogin);
+
+            // 4. Setup Logout Listener
+            logoutBtn.addEventListener('click', handleAdminLogout);
+
+            // 5. Setup Auth State Listener
+            auth.onAuthStateChange((event, session) => {
+                updateAdminUI(session?.user ?? null);
+            });
+
+            // 6. Setup Keyboard Shortcuts
+            document.addEventListener('keydown', function(e) {
+                // Escape key to close admin menu
+                if (e.key === 'Escape') {
+                    toggleAdminMenu(false);
+                }
+                
+                // Ctrl/Cmd + K to open admin menu
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    toggleAdminMenu(true);
+                    // Focus on email input once the panel is open
+                    const emailInput = document.getElementById('admin-email');
+                    if (emailInput) {
+                        setTimeout(() => emailInput.focus(), 300);
+                    }
+                }
+            });
+            
+            // 7. Add first co-guest form on load
+            addCoGuest();
+
+            // 8. Show/hide admin buttons based on screen size
+            function toggleAdminButtons() {
+                const mainButton = document.getElementById('admin-menu-toggle');
+                const compactButton = document.getElementById('admin-menu-toggle-compact');
+                
+                if (window.innerWidth < 768) {
+                    mainButton.classList.add('hidden');
+                    compactButton.classList.remove('hidden');
+                } else {
+                    mainButton.classList.remove('hidden');
+                    compactButton.classList.add('hidden');
+                }
+            }
+
+            // Initial call
+            toggleAdminButtons();
+            
+            // Listen for window resize
+            window.addEventListener('resize', toggleAdminButtons);
+        };
+
+    </script>
+
+</body>
+</html>
