@@ -144,6 +144,28 @@
                 box-shadow: 0 0 0 0 rgba(132, 42, 59, 0);
             }
         }
+
+        /* Responsive Admin Sidebar */
+        @media (min-width: 768px) and (max-width: 1024px) {
+            /* iPad specific styles */
+            .admin-sidebar {
+                width: 70% !important;
+            }
+        }
+
+        @media (min-width: 1025px) and (max-width: 1280px) {
+            /* Small desktop / large tablet */
+            .admin-sidebar {
+                width: 50% !important;
+            }
+        }
+
+        @media (min-width: 1281px) {
+            /* Large desktop */
+            .admin-sidebar {
+                width: 35% !important;
+            }
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4 relative">
@@ -155,15 +177,15 @@
 
     <!-- Main Content Card (Standard White/Shadow - Using Text-Light as background) -->
     <div id="main-card" class="w-full max-w-4xl p-8 bg-text-light rounded-xl shadow-2xl relative">
-        <!-- Header with Logo -->
+        <!-- Header with Logo - Made Bigger -->
         <div class="flex flex-col items-center mb-8">
-            <div class="flex items-center justify-center space-x-4 mb-4">
-                <div class="w-16 h-16 bg-gradient-to-br from-secondary-accent to-tertiary-highlight rounded-lg flex items-center justify-center shadow">
-                    <img src="logo.png" alt="Aikya Logo" class="w-12 h-12 object-contain">
+            <div class="flex items-center justify-center space-x-6 mb-4">
+                <div class="w-24 h-24 bg-gradient-to-br from-secondary-accent to-tertiary-highlight rounded-xl flex items-center justify-center shadow-lg">
+                    <img src="logo.png" alt="Aikya Logo" class="w-20 h-20 object-contain">
                 </div>
                 <div class="text-center">
-                    <h1 class="text-3xl font-bold text-secondary-accent">AIKYA</h1>
-                    <p class="text-sm text-secondary-accent font-medium">Guest Registration</p>
+                    <h1 class="text-4xl font-bold text-secondary-accent">AIKYA</h1>
+                    <p class="text-lg text-secondary-accent font-medium mt-2">Guest Registration</p>
                 </div>
             </div>
         </div>
@@ -298,7 +320,7 @@
     </button>
 
     <!-- Admin Menu Sidebar (With Fixed Glass Effect for Readability) -->
-    <div id="admin-sidebar" class="admin-sidebar fixed top-0 right-0 w-full md:w-3/4 lg:w-1/2 xl:w-1/3 h-full glass-effect shadow-2xl p-6 overflow-y-auto z-50">
+    <div id="admin-sidebar" class="admin-sidebar fixed top-0 right-0 w-full md:w-3/4 lg:w-1/2 xl:w-1/3 2xl:w-1/4 h-full glass-effect shadow-2xl p-6 overflow-y-auto z-50">
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-bold">Admin Portal</h2>
             <button onclick="toggleAdminMenu(false)" class="hover:text-tertiary-highlight transition duration-150">
